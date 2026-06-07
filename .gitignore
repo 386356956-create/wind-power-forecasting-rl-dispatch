@@ -1,0 +1,11 @@
+.venv
+.idea
+artifacts/
+offshore_wind_agent/artifacts/
+offshore_wind_agent/frontend/node_modules/
+__pycache__/
+*.pyc
+*.joblib
+*.joblib.bak
+_inspect/
+wind-power-forecasting-rl-dispatch/

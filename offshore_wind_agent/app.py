@@ -1,0 +1,155 @@
+"""海上风电历史数据分析与多算法智能体 — 后端入口 (Flask API Server)
+=============================================================
+提供 RESTful API, 供 Vue 前端调用:
+  - GET  /api/dashboard       总览大屏数据 (含验证集精度分析)
+  - GET  /api/site/<site_id>  站点详情
+  - GET  /api/comparison      模型/算法对比实验数据
+  - POST /api/ask             智能问答
+  - GET  /api/export/*        数据导出
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from flask import Flask, jsonify, request, send_file
+
+from wind_agent import OffshoreWindAgentSystem
+
+# 项目根目录
+PROJECT_ROOT = Path(__file__).resolve().parent
+
+# 创建 Flask 应用
+app = Flask(__name__)
+
+# 初始化海上风电智能体系统 (serve 模式: 仅加载最优历史结果, 绝不触发训练)
+# 如果没有训练过, 启动时会报错并提示先运行 python train_system.py
+system = OffshoreWindAgentSystem(PROJECT_ROOT, mode="serve")
+
+
+# ============================================================================
+# CORS 中间件 — 允许前端跨域访问
+# ============================================================================
+
+@app.after_request
+def add_cors_headers(response):
+    """为所有响应添加 CORS 头, 允许前端跨域请求"""
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
+
+
+# ============================================================================
+# API 路由
+# ============================================================================
+
+@app.route("/", methods=["GET"])
+def health():
+    """健康检查 / 根路径"""
+    return jsonify({
+        "name": "Offshore Wind Agent Backend",
+        "status": "ok",
+        "version": system.version,
+        "message": "海上风电历史数据分析系统已就绪。请使用 Vue 前端访问 Dashboard。",
+    })
+
+
+@app.route("/api/<path:_path>", methods=["OPTIONS"])
+def api_options(_path: str):
+    """处理预检请求 (CORS preflight)"""
+    return ("", 204)
+
+
+@app.route("/api/dashboard")
+def dashboard():
+    """获取 Dashboard 总览页的全量数据
+
+    包含: 汇总指标卡片、站点概览、模型指标、RL策略对比、
+          实验模块、高风险窗口、元信息、问答后端状态等。
+    """
+    return jsonify(system.get_dashboard_payload())
+
+
+@app.route("/api/site/<site_id>")
+def site_detail(site_id: str):
+    """获取指定站点的详情数据
+
+    包含: 预测时序、风险曲线、日汇总、高风险窗口、调度建议等。
+    """
+    return jsonify(system.get_site_payload(site_id))
+
+
+@app.route("/api/comparison")
+def comparison():
+    """获取模型对比和算法对比数据 (新增)
+
+    包含:
+      - model_comparison: HistGBR vs LightGBM 预测精度对比
+      - rl_algorithm_comparison: Q-Learning vs DQN 调度策略对比
+      - model_metrics: 完整的模型评估指标
+      - rl_comparison: 所有调度策略的横向对比
+    """
+    payload = system.get_dashboard_payload()
+    return jsonify({
+        "model_comparison": payload.get("model_comparison", {}),
+        "rl_algorithm_comparison": payload.get("rl_algorithm_comparison", {}),
+        "model_metrics": payload.get("model_metrics", {}),
+        "rl_comparison": payload.get("rl_comparison", []),
+        "experiment_modules": payload.get("experiment_modules", []),
+        "algorithm_simulation": payload.get("algorithm_simulation", {}),
+    })
+
+
+@app.route("/api/ask", methods=["POST"])
+def ask():
+    """智能问答接口
+
+    接收 JSON: {"question": "..."}
+    返回 JSON: {"question": "...", "answer": "...", "backend": "ollama"|"rule-based", "model": "..."}
+
+    优先调用 Ollama LLM, 不可用时回退到内置规则问答。
+    """
+    payload = request.get_json(silent=True) or {}
+    question = str(payload.get("question", "")).strip()
+    if not question:
+        return jsonify({"answer": "Please provide a question."}), 400
+    return jsonify(system.answer_question(question))
+
+
+@app.route("/api/export/forecast.csv")
+def export_forecast():
+    """导出测试集预测结果为 CSV 文件
+
+    包含字段: site_id, timestamp, predicted_power_mw, risk_score,
+             recommended_action, recommended_dispatch_mw, reserve_factor
+    """
+    return send_file(
+        system.export_forecast_csv(),
+        as_attachment=True,
+        download_name="offshore_wind_forecast.csv",
+        mimetype="text/csv",
+    )
+
+
+@app.route("/api/export/rl_report.json")
+def export_rl_report():
+    """导出强化学习完整报告为 JSON 文件
+
+    包含: 系统摘要、模型对比、RL策略对比、实验模块、样例数据等。
+    """
+    return send_file(
+        system.export_rl_report_json(),
+        as_attachment=True,
+        download_name="offshore_wind_rl_report.json",
+        mimetype="application/json",
+    )
+
+
+# ============================================================================
+# 启动入口
+# ============================================================================
+
+if __name__ == "__main__":
+    # debug=False 适用于生产/演示环境
+    app.run(host="127.0.0.1", port=5000, debug=False)

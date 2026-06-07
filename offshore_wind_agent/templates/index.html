@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>海上风电智能体</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Offshore Wind AI System</p>
+          <h1>海上风电预测与多算法实验智能体</h1>
+          <p class="hero-text">
+            围绕“强化学习和智能游戏实验”课程目标，把海上风电预测、风险调控、Q-Learning、
+            启发式搜索、遗传算法和本地大模型问答整合成一个完整的电力人工智能应用系统。
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="/api/export/forecast.csv">导出预测结果</a>
+            <a class="button ghost" href="/api/export/rl_report.json">导出实验报告</a>
+          </div>
+          <div class="agent-inline-status">
+            <span>问答后端</span>
+            <strong id="agent-backend-label">加载中...</strong>
+            <small id="agent-backend-note"></small>
+          </div>
+        </div>
+        <div class="hero-orbital">
+          <div class="orb orb-a"></div>
+          <div class="orb orb-b"></div>
+          <div class="signal-card">
+            <p>智能体状态</p>
+            <strong id="agent-status">正在加载模型与策略...</strong>
+            <span id="agent-substatus">Forecast + Search + GA + RL + QA</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="dashboard">
+        <section class="panel summary-panel">
+          <div class="panel-head">
+            <h2>系统概览</h2>
+            <p id="meta-range">读取数据中...</p>
+          </div>
+          <div id="summary-cards" class="summary-cards"></div>
+        </section>
+
+        <section class="panel station-panel">
+          <div class="panel-head split">
+            <div>
+              <h2>站点画像</h2>
+              <p>按站点查看预测表现、平均风险和主导调度动作。</p>
+            </div>
+            <div class="selector-wrap">
+              <label for="site-selector">站点选择</label>
+              <select id="site-selector"></select>
+            </div>
+          </div>
+          <div id="station-grid" class="station-grid"></div>
+        </section>
+
+        <section class="panel chart-panel">
+          <div class="panel-head">
+            <h2>预测功率与调度功率</h2>
+            <p>展示单站点前 192 个 15 分钟时刻的功率预测与智能调度建议。</p>
+          </div>
+          <div class="chart-card">
+            <svg id="power-chart" viewBox="0 0 920 320" preserveAspectRatio="none"></svg>
+            <div class="chart-legend">
+              <span><i class="legend-swatch forecast"></i>预测功率</span>
+              <span><i class="legend-swatch dispatch"></i>推荐调度</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel dual-panel">
+          <div class="subpanel">
+            <div class="panel-head">
+              <h2>风险条带</h2>
+              <p>首日 96 个时刻的风险热区，可直观看到高风险窗口。</p>
+            </div>
+            <div id="risk-band" class="risk-band"></div>
+          </div>
+          <div class="subpanel">
+            <div class="panel-head">
+              <h2>算法对比</h2>
+              <p>在同一调度环境下比较 Q-Learning、启发式搜索、GA 和基线策略。</p>
+            </div>
+            <div id="rl-bars" class="rl-bars"></div>
+          </div>
+        </section>
+
+        <section class="panel experiment-panel">
+          <div class="panel-head">
+            <h2>课程实验映射</h2>
+            <p>将实验18、19、20、24统一映射到海上风电调度任务中。</p>
+          </div>
+          <div id="experiment-modules" class="experiment-modules"></div>
+        </section>
+
+        <section class="panel insights-panel">
+          <div class="subpanel">
+            <div class="panel-head">
+              <h2>高风险窗口</h2>
+              <p>答辩时可重点讲这些时段为什么要切换策略。</p>
+            </div>
+            <div id="risk-table" class="table-list"></div>
+          </div>
+          <div class="subpanel">
+            <div class="panel-head">
+              <h2>智能问答</h2>
+              <p>支持提问预测结果、强化学习策略、启发式搜索、GA 优化和站点分析。</p>
+            </div>
+            <div class="qa-box">
+              <textarea id="question-input" placeholder="例如：请用答辩风格解释一下遗传算法在这个系统里的作用"></textarea>
+              <button id="ask-button" class="button primary wide">向智能体提问</button>
+              <div id="answer-meta" class="answer-meta"></div>
+              <div id="answer-box" class="answer-box">等待提问...</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel dual-panel">
+          <div class="subpanel">
+            <div class="panel-head">
+              <h2>启发式搜索样例</h2>
+              <p>展示启发式策略在高风险日上的动作序列片段。</p>
+            </div>
+            <div id="heuristic-examples" class="example-list"></div>
+          </div>
+          <div class="subpanel">
+            <div class="panel-head">
+              <h2>GA 优化样例</h2>
+              <p>展示遗传算法优化得到的调度序列片段。</p>
+            </div>
+            <div id="ga-examples" class="example-list"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  </body>
+</html>
